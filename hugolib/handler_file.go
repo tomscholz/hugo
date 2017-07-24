@@ -48,6 +48,7 @@ func (h defaultHandler) FileConvert(f *source.File, s *Site) HandledResult {
 
 type cssHandler struct{ basicFileHandler }
 
+// TODO(bep) bundle
 func (h cssHandler) Extensions() []string { return []string{"css"} }
 func (h cssHandler) FileConvert(f *source.File, s *Site) HandledResult {
 	x := cssmin.Minify(f.Bytes())

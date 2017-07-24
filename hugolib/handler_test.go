@@ -61,7 +61,7 @@ func TestDefaultHandler(t *testing.T) {
 		{filepath.FromSlash("public/sect/doc8.html"), "\n\n<h1 id=\"title\">title</h1>\n\n<p>some <em>content</em></p>\n"},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		file, err := fs.Destination.Open(test.doc)
 		if err != nil {
 			t.Fatalf("Did not find %s in target.", test.doc)
@@ -70,7 +70,7 @@ func TestDefaultHandler(t *testing.T) {
 		content := helpers.ReaderToString(file)
 
 		if content != test.expected {
-			t.Errorf("%s content expected:\n%q\ngot:\n%q", test.doc, test.expected, content)
+			t.Errorf("[%d] %s content expected:\n%q\ngot:\n%q", i, test.doc, test.expected, content)
 		}
 	}
 

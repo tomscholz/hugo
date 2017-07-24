@@ -80,6 +80,7 @@ type Site struct {
 
 	*PageCollections
 
+	// TODO(bep) bundles
 	Files      []*source.File
 	Taxonomies TaxonomyList
 
@@ -1109,7 +1110,7 @@ func (s *Site) getThemeLayoutDir(path string) string {
 }
 
 func (s *Site) absContentDir() string {
-	return s.PathSpec.AbsPathify(s.Cfg.GetString("contentDir"))
+	return s.PathSpec.AbsPathify(s.PathSpec.ContentDir())
 }
 
 func (s *Site) isContentDirEvent(e fsnotify.Event) bool {
@@ -1175,14 +1176,40 @@ func (s *Site) reReadFile(absFilePath string) (*source.File, error) {
 	return file, nil
 }
 
+func (s *Site) readPagesFromSource2() error {
+
+	b := newBundler(s)
+
+	if err := b.captureFiles(); err != nil {
+		return err
+	}
+
+	if err := b.processContentBundles(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// TODO(bep) bundle
 func (s *Site) readPagesFromSource() chan error {
+	errs := make(chan error)
+
+	if err := s.readPagesFromSource2(); err != nil {
+		panic(fmt.Sprint(err))
+	}
+
+	if true {
+		close(errs)
+		return errs
+	}
+
 	if s.Source == nil {
 		panic(fmt.Sprintf("s.Source not set %s", s.absContentDir()))
 	}
 
 	s.Log.DEBUG.Printf("Read %d pages from source", len(s.Source.Files()))
 
-	errs := make(chan error)
 	if len(s.Source.Files()) < 1 {
 		close(errs)
 		return errs
@@ -1247,24 +1274,12 @@ func (s *Site) convertSource() chan error {
 	return errs
 }
 
+// TODO(bep) bundler
 func (s *Site) createPages() error {
-	readErrs := <-s.readPagesFromSource()
-	s.timerStep("read pages from source")
+	err := s.readPagesFromSource2()
+	s.timerStep("read and convert pages from source")
 
-	renderErrs := <-s.convertSource()
-	s.timerStep("convert source")
-
-	if renderErrs == nil && readErrs == nil {
-		return nil
-	}
-	if renderErrs == nil {
-		return readErrs
-	}
-	if readErrs == nil {
-		return renderErrs
-	}
-
-	return fmt.Errorf("%s\n%s", readErrs, renderErrs)
+	return err
 }
 
 func sourceReader(s *Site, files <-chan *source.File, results chan<- HandledResult, wg *sync.WaitGroup) {
