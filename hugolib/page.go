@@ -23,6 +23,8 @@ import (
 	"github.com/bep/gitmap"
 
 	"github.com/gohugoio/hugo/helpers"
+	"github.com/gohugoio/hugo/resource"
+
 	"github.com/gohugoio/hugo/output"
 	"github.com/gohugoio/hugo/parser"
 	"github.com/mitchellh/mapstructure"
@@ -69,6 +71,8 @@ const (
 	kindSitemap   = "sitemap"
 	kindRobotsTXT = "robotsTXT"
 	kind404       = "404"
+
+	pageResourceType resource.Type = "page"
 )
 
 type Page struct {
@@ -89,6 +93,12 @@ type Page struct {
 	// but can now be more intuitively also be fetched directly from .Pages.
 	// This collection will be nil for regular pages.
 	Pages Pages
+
+	// Since Hugo 0.27, a Page can have resources such as images and CSS associated
+	// with itself. The resource will typically be placed relative to the Page,
+	// but templates should use the links (Permalink and RelPermalink)
+	// provided by the Resource object.
+	Resources resource.Resources
 
 	// translations will contain references to this page in other language
 	// if available.
@@ -224,6 +234,10 @@ type Page struct {
 	mainPageOutput *PageOutput
 
 	targetPathDescriptorPrototype *targetPathDescriptor
+}
+
+func (*Page) ResourceType() resource.Type {
+	return pageResourceType
 }
 
 func (p *Page) RSSLink() template.URL {
