@@ -18,6 +18,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gohugoio/hugo/hugofs"
+
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +29,23 @@ func TestPageBundlerCapture(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
-	_, fs := newTestCfg()
+	_, fs := newTestBundleSources(t)
+
+	c := newCapturer(fs.Source, "base")
+
+	assert.NoError(c.capture())
+
+	assert.Len(c.singles, 3)
+	assert.Len(c.bundles, 2)
+
+	assert.Len(c.getBundleDirByOwner(filepath.FromSlash("_index.md")).resources, 1)
+	assert.Len(c.getBundleDirByOwner(filepath.FromSlash("b/index.md")).resources, 3)
+}
+
+func newTestBundleSources(t *testing.T) (*viper.Viper, *hugofs.Fs) {
+	cfg, fs := newTestCfg()
+
+	cfg.Set("contentDir", "base")
 
 	// Bundle
 	writeSource(t, fs, filepath.Join("base", "_index.md"), "content")
@@ -42,15 +62,7 @@ func TestPageBundlerCapture(t *testing.T) {
 	writeSource(t, fs, filepath.Join("base", "b", "2.md"), "content")
 	writeSource(t, fs, filepath.Join("base", "b", "c", "logo.png"), "content")
 
-	c := newCapturer(fs.Source, "base")
-
-	assert.NoError(c.capture())
-
-	assert.Len(c.singles, 3)
-	assert.Len(c.bundles, 2)
-
-	assert.Len(c.getBundleDirByOwner(filepath.FromSlash("_index.md")).resources, 1)
-	assert.Len(c.getBundleDirByOwner(filepath.FromSlash("b/index.md")).resources, 3)
+	return cfg, fs
 }
 
 func BenchmarkPageBundlerCapture(b *testing.B) {

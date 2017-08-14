@@ -14,7 +14,6 @@
 package hugolib
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/gohugoio/hugo/deps"
@@ -22,41 +21,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func _TestPageBundler(t *testing.T) {
+func TestPageBundlerSite(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
-
-	var (
-		cfg, fs = newTestCfg()
-		//th      = testHelper{cfg, fs, t}
-	)
-
-	writeSource(t, fs, filepath.Join("content", "_index.md"), `---
-title: Home Page
----`)
-
-	writeSource(t, fs, filepath.Join("content", "a", "page.md"), `---
-title: A Page
----`)
-	writeSource(t, fs, filepath.Join("content", "b", "page.md"), `---
-title: A Page
----`)
-
-	writeSource(t, fs, filepath.Join("content", "bundle", "page.md"), `---
-title: A Page
----`)
-
-	writeSource(t, fs, filepath.Join("content", "bundle", "index.md"), `---
-title: A Page
----`)
-
-	writeSource(t, fs, filepath.Join("content", "bundle", "logo.png"), `THIS IS A PNG`)
-
-	writeSource(t, fs, filepath.Join("content", "bundle", "images", "cartoon.jpg"), `THIS IS A JPG`)
+	cfg, fs := newTestBundleSources(t)
 
 	s := buildSingleSite(t, deps.DepsCfg{Fs: fs, Cfg: cfg}, BuildCfg{})
 
-	assert.Len(s.RegularPages, 3)
+	// Singles (2), Below home (1), Bundle (1)
+	assert.Len(s.RegularPages, 4)
 
 }

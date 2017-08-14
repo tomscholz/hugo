@@ -20,13 +20,14 @@ import (
 
 // TODO(bep) bundle CSS min handler. Document its removal.
 
-type fileOrPage struct {
-	f *file
-	p *Page
+type filesOrPage struct {
+	bundle   bundleDir
+	filename string
+	p        *Page
 }
 
 type (
-	contentItemHandler       func(f *fileOrPage, pages chan<- *Page, files chan<- *file) (string, error)
+	contentItemHandler       func(f *filesOrPage, pages chan<- *Page) (string, error)
 	contentItemHandlerCreate func(s *Site) contentItemHandler
 	contentItemHandlerRoutes map[string]contentItemHandler
 	contentPipeline          struct {

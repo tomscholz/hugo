@@ -16,21 +16,37 @@ package hugolib
 import (
 	"fmt"
 
+	"path/filepath"
+
 	"github.com/gohugoio/hugo/helpers"
 )
 
 type contentHandlers struct{}
 
+// First step:
+// Bundle, owner + files
+// Read owner, next route => owner page + files
+// Eeach file => Pipe return file or page ... Resource?
+
 func (*contentHandlers) contentPageFirstStep(s *Site) contentItemHandler {
-	return func(f *fileOrPage, pages chan<- *Page, files chan<- *file) (string, error) {
+	contentDir := s.absContentDir()
+	return func(fop *filesOrPage, pages chan<- *Page) (string, error) {
 		nextRoute := defaultContentHandlerRoute
 
-		p, err := s.NewPage(f.f.filename)
+		contentPath := filepath.Join(contentDir, fop.filename)
+		f, err := s.Fs.Source.Open(contentPath)
+		if err != nil {
+			return "", err
+		}
+
+		defer f.Close()
+
+		p, err := s.NewPage(fop.filename)
 		if err != nil {
 			return nextRoute, err
 		}
 
-		_, err = p.ReadFrom(f.f)
+		_, err = p.ReadFrom(f)
 		if err != nil {
 			return nextRoute, err
 		}
@@ -40,7 +56,7 @@ func (*contentHandlers) contentPageFirstStep(s *Site) contentItemHandler {
 			return nextRoute, nil
 		}
 
-		f.p = p
+		fop.p = p
 
 		if p.Markup != "" {
 			nextRoute = p.Markup
@@ -53,7 +69,7 @@ func (*contentHandlers) contentPageFirstStep(s *Site) contentItemHandler {
 }
 
 func (*contentHandlers) contentPageHandle(s *Site) contentItemHandler {
-	return func(f *fileOrPage, pages chan<- *Page, files chan<- *file) (string, error) {
+	return func(f *filesOrPage, pages chan<- *Page) (string, error) {
 
 		nextRoute := defaultContentHandlerRoute
 
@@ -96,7 +112,7 @@ func (*contentHandlers) contentPageHandle(s *Site) contentItemHandler {
 }
 
 func (*contentHandlers) contentHTMLPageHandle(s *Site) contentItemHandler {
-	return func(f *fileOrPage, pages chan<- *Page, files chan<- *file) (string, error) {
+	return func(f *filesOrPage, pages chan<- *Page) (string, error) {
 
 		nextRoute := defaultContentHandlerRoute
 
@@ -121,11 +137,19 @@ func (*contentHandlers) contentHTMLPageHandle(s *Site) contentItemHandler {
 
 // TODO(bep) bundle use the files chan, maybe.
 func (*contentHandlers) copyContentFileToDestination(s *Site) contentItemHandler {
-	return func(f *fileOrPage, pages chan<- *Page, files chan<- *file) (string, error) {
-		// TODO(bep) bundle some kind of EOF
+	contentDir := s.absContentDir()
+	return func(fop *filesOrPage, pages chan<- *Page) (string, error) {
 		nextRoute := defaultContentHandlerRoute
 
-		return nextRoute, s.publish(f.f.filename, f.f)
+		contentPath := filepath.Join(contentDir, fop.filename)
+		f, err := s.Fs.Source.Open(contentPath)
+		if err != nil {
+			return "", err
+		}
+
+		defer f.Close()
+
+		return nextRoute, s.publish(fop.filename, f)
 
 	}
 }

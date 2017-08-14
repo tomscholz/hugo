@@ -15,8 +15,6 @@ package hugolib
 
 import (
 	"context"
-	"io"
-	"path/filepath"
 
 	"golang.org/x/sync/errgroup"
 
@@ -58,9 +56,6 @@ func (b *contentSourceMap) processContentBundles() error {
 	// The output file batches.
 	pagesChan := make(chan *Page)
 
-	// TODO(bep) bundle
-	filesChan := make(chan *file)
-
 	numWorkers := getGoMaxProcs() * 4
 
 	var (
@@ -77,12 +72,12 @@ func (b *contentSourceMap) processContentBundles() error {
 		filesBundlesProcessors.Go(func() error {
 			for bundle := range fileBundlesChan {
 				// TODO(bep) bundles
-				err := b.readAndConvertContentFile(bundle.owner, pagesChan, filesChan)
+				err := b.readAndConvertContentFile(bundle.owner, pagesChan)
 				if err != nil {
 					return err
 				}
 				for _, filename := range bundle.resources {
-					err := b.readAndConvertContentFile(filename, pagesChan, filesChan)
+					err := b.readAndConvertContentFile(filename, pagesChan)
 					if err != nil {
 						return err
 					}
@@ -95,7 +90,7 @@ func (b *contentSourceMap) processContentBundles() error {
 		filesSinglesProcessors.Go(func() error {
 			for filename := range fileSinglesChan {
 				// TODO(bep) bundles
-				err := b.readAndConvertContentFile(filename, pagesChan, filesChan)
+				err := b.readAndConvertContentFile(filename, pagesChan)
 				if err != nil {
 					return err
 				}
@@ -147,29 +142,9 @@ func (b *contentSourceMap) processContentBundles() error {
 	return nil
 }
 
-// TODO(bep) bundle names
-type file struct {
-	// Filename with path relative to the content root.
-	filename string
+func (b *contentSourceMap) readAndConvertContentFile(filename string, pages chan<- *Page) error {
 
-	// The file content.
-	io.Reader
-}
-
-func newFile(filename string, r io.Reader) *file {
-	return &file{filename: filename, Reader: r}
-}
-
-func (b *contentSourceMap) readAndConvertContentFile(filename string, pages chan<- *Page, files chan<- *file) error {
-	contentPath := filepath.Join(b.s.absContentDir(), filename)
-	f, err := b.s.Fs.Source.Open(contentPath)
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	fop := &fileOrPage{f: newFile(filename, f)}
+	fop := &filesOrPage{filename: filename}
 
 	ext := helpers.Ext(filename)
 
@@ -179,11 +154,14 @@ func (b *contentSourceMap) readAndConvertContentFile(filename string, pages chan
 		return nil
 	}
 
-	var nextRoute = defaultContentHandlerRoute
+	var (
+		nextRoute = defaultContentHandlerRoute
+		err       error
+	)
 
 	for _, route := range pipeline.routes {
 		handle := route.get(nextRoute)
-		if nextRoute, err = handle(fop, pages, files); err != nil {
+		if nextRoute, err = handle(fop, pages); err != nil {
 			return err
 		}
 		if nextRoute == "" {
